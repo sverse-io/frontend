@@ -1,0 +1,7 @@
+version: "3"
+services:
+  web:
+    image: rstakaiito/sverse-fe-v3-prd:latest
+    ports:
+      - "6080:3000"
+    restart: always
