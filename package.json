@@ -6,7 +6,7 @@
     "scripts": {
         "dev": "nuxt dev --port 3000",
         "build": "nuxt build --preset=cloudflare_pages",
-        "build:node": "nuxt build --preset=node-server",
+        "build:node": "nuxt build",
         "preview": "wrangler pages dev dist",
         "deploy": "wrangler pages deploy dist",
         "deploy:build": "npm run build && npm run deploy",
