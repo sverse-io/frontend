@@ -1,8 +1,0 @@
-{
-  "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "sverse-fe",
-  "pages_build_output_dir": "./dist",
-  "compatibility_date": "2026-08-02",
-  "compatibility_flags": ["nodejs_compat"],
-  "upload_source_maps": true
-}
