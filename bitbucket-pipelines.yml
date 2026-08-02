@@ -14,7 +14,7 @@ pipelines:
           size: 2x
           script:
             # Build Docker image
-            - docker build ./ -t $DOCKER_IMAGE_NAME --build-arg ENV=production --build-arg VITE_API_URL=$VITE_API_URL
+            - docker build ./ -t $DOCKER_IMAGE_NAME --build-arg ENV=production --build-arg NUXT_PUBLIC_API_BASE=$NUXT_PUBLIC_API_BASE
 
             # Login Docker Hub
             - echo $DOCKER_HUB_PASSWORD | docker login -u $DOCKER_HUB_USERNAME --password-stdin

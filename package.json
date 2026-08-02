@@ -5,12 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "nuxt dev --port 3000",
-    "build": "nuxt build --preset=cloudflare_pages",
-    "build:node": "nuxt build --preset=node-server",
-    "preview": "wrangler --cwd dist pages dev",
-    "deploy": "wrangler --cwd dist pages deploy",
-    "deploy:build": "npm run build && npm run deploy",
-    "check": "nuxt typecheck"
+    "build": "nuxt build"
   },
   "dependencies": {
     "nuxt": "3.17.7",
