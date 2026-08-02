@@ -280,7 +280,7 @@ const visibleEntries = computed(() => {
   return sorted.slice(0, 8)
 })
 
-const provenancePair = computed(() => {
+const provenancePair = computed<MarketEntry[]>(() => {
   const source = visibleEntries.value.length ? visibleEntries.value : fallbackEntries.value
   const schemaGroups = new Map<string, MarketEntry[]>()
 
@@ -293,7 +293,9 @@ const provenancePair = computed(() => {
   for (const group of schemaGroups.values()) {
     if (group.length < 2) continue
     const ranked = [...group].sort((left, right) => right.priceValue - left.priceValue)
-    return [ranked[0], ranked[ranked.length - 1]]
+    const highest = ranked[0]
+    const lowest = ranked.at(-1)
+    if (highest && lowest) return [highest, lowest]
   }
 
   return source.slice(0, 2)
