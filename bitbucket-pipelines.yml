@@ -1,0 +1,35 @@
+image: node:18-slim
+
+options:
+  docker: true
+  size: 2x
+
+pipelines:
+  branches:
+    release:
+      - step:
+          deployment: Production
+          services:
+            - docker
+          size: 2x
+          script:
+            # Build Docker image
+            - docker build ./ -t $DOCKER_IMAGE_NAME --build-arg ENV=production --build-arg VITE_API_URL=$VITE_API_URL
+
+            # Login Docker Hub
+            - echo $DOCKER_HUB_PASSWORD | docker login -u $DOCKER_HUB_USERNAME --password-stdin
+
+            # Push image to Docker Hub
+            - docker push $DOCKER_IMAGE_NAME
+
+            # Deploy via SSH
+            - pipe: atlassian/ssh-run:0.2.4
+              variables:
+                SSH_USER: root
+                SERVER: $SERVER_IP
+                MODE: script
+                COMMAND: deploy-prd.sh
+definitions:
+  services:
+    docker:
+      memory: 4096
