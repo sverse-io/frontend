@@ -10,7 +10,7 @@ COPY . .
 ARG NUXT_PUBLIC_API_BASE
 ENV NUXT_PUBLIC_API_BASE=${NUXT_PUBLIC_API_BASE}
 
-RUN npm run build
+RUN npm run build:node
 
 # ──── Production stage ────
 FROM node:20-alpine AS production

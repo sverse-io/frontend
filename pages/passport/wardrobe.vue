@@ -6,14 +6,22 @@
       <p>Cosmetics carry zero balance risk, so studios accept them — which is why T1 ships first and stat-bearing T2 waits for a partner cohort.</p>
     </div>
 
-    <div class="split-340" style="grid-template-columns:400px 1fr;gap:40px">
+    <div v-if="status === 'pending' && !wardrobe" class="split-340 wardrobe-split" aria-busy="true">
+      <div class="sk" style="height:420px;border-radius:var(--r-xl)"></div>
+      <div class="items"><div v-for="n in 6" :key="n" class="item"><div class="sk" style="aspect-ratio:1"></div></div></div>
+    </div>
+    <ErrorState v-else-if="error && !wardrobe" title="Could not load your wardrobe" :error="error" :retry="refresh" />
+    <div v-else-if="wardrobe" class="split-340 wardrobe-split">
       <div>
-        <div class="avatar-preview">
-          <img :src="avatarPreview" alt="Your avatar wearing the current loadout">
+        <div class="loadout" aria-label="Current loadout">
+          <div class="loadout__grid">
+            <img v-for="item in wardrobe.equipped" :key="item.id" :src="item.imageUrl" :alt="item.name">
+            <span v-if="!wardrobe.equipped.length" class="loadout__empty">Nothing equipped</span>
+          </div>
           <div class="avatar-preview__tag">
             <div>
               <p style="font-size:.86rem;font-weight:600">Current loadout</p>
-              <p class="t-small dim">renders in {{ renderTargetCount }} titles</p>
+              <p class="t-small dim">renders in {{ loadoutTargets.length }} title{{ loadoutTargets.length === 1 ? '' : 's' }}</p>
             </div>
             <span class="chip chip--t1">T1</span>
           </div>
@@ -21,244 +29,144 @@
 
         <div class="slots">
           <div v-for="slot in slots" :key="slot.key" class="slot" :class="{ free: !slot.item }">
-            <span class="slot__k">{{ slot.label }}</span>
+            <span class="slot__k">{{ humanize(slot.key) }}</span>
             <img v-if="slot.item" :src="slot.item.imageUrl" alt="">
             <span style="flex:1">{{ slot.item?.name ?? '— empty slot —' }}</span>
-            <button v-if="slot.item" class="btn btn--ghost btn--sm" type="button" @click="focusSlot(slot.key)">Swap</button>
+            <button v-if="slot.item" class="btn btn--ghost btn--sm" type="button" :disabled="Boolean(saving)" @click="toggle(slot.item)">Unequip</button>
           </div>
         </div>
 
+        <div v-if="displacedNote" class="note" style="margin-top:18px" role="status">
+          <span class="note__i">↺</span>
+          <div>{{ displacedNote }}</div>
+        </div>
         <div class="note note--warn" style="margin-top:18px">
           <span class="note__i">⚠️</span>
-          <div><b>One item per slot.</b> Equipping a second torso item displaces the first, visibly, in the same update. A listed item cannot be equipped — that surfaces as an inline error, not a toast.</div>
+          <div><b>One item per slot.</b> Equipping a second item for a slot displaces the first in the same update. A listed item cannot be equipped.</div>
         </div>
       </div>
 
-      <div data-tabscope>
-        <section class="pane on" data-pane="ward">
-          <div v-if="inlineError" class="note note--warn" style="margin-bottom:20px">
-            <span class="note__i">⚠️</span>
-            <div>{{ inlineError }}</div>
-          </div>
+      <div>
+        <div class="note" style="margin-bottom:20px">
+          <span class="note__i">🌐</span>
+          <div><b>Shop by how many worlds it renders in.</b> The host icons under each item are the games whose interop envelope accepts that schema — straight from the API, never computed here.</div>
+        </div>
 
-          <div class="note" style="margin-bottom:20px">
-            <span class="note__i">🌐</span>
-            <div><b>Shop by how many worlds it renders in.</b> The host icons under each item are the games whose interop envelope accepts that schema at T1 — this is what turns interop from a technical footnote into a purchase driver.</div>
-          </div>
-
-          <div v-if="pending" class="items">
-            <div v-for="n in 6" :key="n" class="item"><div class="sk" style="aspect-ratio:1"></div></div>
-          </div>
-          <div v-else class="items">
-            <article
-              v-for="item in visibleCandidates"
-              :key="item.id"
-              :data-slot="item.traits?.slot ?? ''"
-              class="item"
-              :class="{ on: item.equipped }"
-            >
-              <div class="item__art">
-                <span class="item__tier chip chip--t1">{{ item.interopTier }}</span>
-                <img :src="item.imageUrl" :alt="item.name" loading="lazy">
-              </div>
-              <div class="item__body">
-                <p class="item__n">{{ item.name }}</p>
-                <p class="item__g">{{ item.game.title }} · {{ item.traits?.slot ?? 'cosmetic' }}</p>
-                <p class="t-small dim" style="margin-top:4px">renders in {{ item.renderTargets.length }} titles</p>
-                <div class="renders">
-                  <NuxtLink
-                    v-for="target in item.renderTargets.slice(0, 6)"
-                    :key="target.gameId"
-                    :to="`/store/g/${target.slug}`"
-                    :title="target.title"
-                  >
-                    <img :src="renderTargetImage(target.slug)" :alt="target.title" loading="lazy">
-                  </NuxtLink>
-                </div>
-                <div class="item__acts">
-                  <button
-                    class="btn btn--sm"
-                    :class="item.equipped ? 'btn--grad on' : 'btn--ghost'"
-                    type="button"
-                    :disabled="saving === item.id"
-                    @click="toggle(item)"
-                  >
-                    {{ item.equipped ? 'Equipped ✓' : 'Equip' }}
-                  </button>
-                </div>
-              </div>
-            </article>
-          </div>
-
-          <p class="sect">Not interop-enabled</p>
-          <div class="items">
-            <div class="item" style="opacity:.55">
-              <div class="item__art">
-                <span class="item__tier chip chip--t0">T0</span>
-                <img :src="nonInteropItem.imageUrl" alt="" loading="lazy">
-              </div>
-              <div class="item__body">
-                <p class="item__n">{{ nonInteropItem.name }}</p>
-                <p class="item__g">{{ nonInteropItem.game.title }}</p>
-                <p class="t-small dim" style="margin-top:4px">T0 · stays in its own game</p>
-              </div>
+        <EmptyState v-if="!candidates.length" icon="🧥" title="No cross-game items yet" body="T1+ cosmetics render in other games. Look for the T1 badge in the Store.">
+          <NuxtLink class="btn btn--grad btn--sm" :to="{ path: '/', query: { interopTier: 'T1' } }">Find T1 items</NuxtLink>
+        </EmptyState>
+        <div v-else class="items">
+          <article v-for="item in candidates" :key="item.id" class="item" :class="{ on: item.equipped }" :data-slot="item.slot ?? ''">
+            <div class="item__art">
+              <span class="item__tier" :class="tierClass(item.interopTier)">{{ item.interopTier }}</span>
+              <img :src="item.imageUrl" :alt="item.name" loading="lazy">
             </div>
-          </div>
-          <p class="t-small dim" style="margin-top:12px">T0 items are identity-only — a badge or title can be displayed elsewhere, but nothing renders. They never appear in the wardrobe grid above.</p>
-        </section>
+            <div class="item__body">
+              <p class="item__n">{{ item.name }}</p>
+              <p class="item__g">{{ item.game.title }} · {{ item.slot ?? 'no slot' }}</p>
+              <p class="t-small dim" style="margin-top:4px">renders in {{ item.renderTargets.length }} title{{ item.renderTargets.length === 1 ? '' : 's' }}</p>
+              <div class="renders">
+                <NuxtLink v-for="target in item.renderTargets.slice(0, 6)" :key="target.gameId" :to="`/store/g/${target.slug}`" :title="target.title" :aria-label="target.title">
+                  <img v-if="coverFor(target.slug)" :src="coverFor(target.slug)" :alt="target.title" loading="lazy">
+                  <span v-else class="renders__glyph">{{ target.title.charAt(0) }}</span>
+                </NuxtLink>
+                <span v-if="item.renderTargets.length > 6" class="t-small dim" style="align-self:center">+{{ item.renderTargets.length - 6 }}</span>
+              </div>
+              <div class="item__acts">
+                <button
+                  class="btn btn--sm"
+                  :class="item.equipped ? 'btn--grad on' : 'btn--ghost'"
+                  type="button"
+                  :disabled="saving === item.id || item.listed"
+                  :aria-pressed="item.equipped"
+                  @click="toggle(item)"
+                >
+                  {{ saving === item.id ? 'Saving…' : item.equipped ? 'Equipped ✓' : item.listed ? 'Listed' : 'Equip' }}
+                </button>
+              </div>
+              <p v-if="inlineErrors[item.id]" class="field__err" role="alert">{{ inlineErrors[item.id] }}</p>
+            </div>
+          </article>
+        </div>
+        <p class="t-small dim" style="margin-top:14px">T0 items are identity-only — a badge or title can be displayed elsewhere, but nothing renders, so they never appear in this grid.</p>
       </div>
     </div>
   </main>
 </template>
 
 <script setup lang="ts">
-useHead({ title: 'Wardrobe · Sverse' })
+import type { InventoryItem, Wardrobe } from '~/types/sverse'
+
+useHead({ title: 'Wardrobe · Sverse', meta: [{ name: 'robots', content: 'noindex' }] })
 
 const api = useApi()
-const config = useRuntimeConfig()
-const inlineError = ref('')
+const session = useSession()
+const toast = useToast()
+const { data: games } = useGameOptions()
+
+const { data, status, error, refresh } = usePassportData('passport:wardrobe', () => api.one<Wardrobe>('/api/v1/passport/me/wardrobe'))
+
+const local = ref<InventoryItem[] | null>(null)
+watch(data, () => (local.value = null))
+
+const wardrobe = computed(() => {
+  if (!data.value) return null
+  const candidates = local.value ?? data.value.candidates ?? []
+  return { candidates, equipped: candidates.filter((item) => item.equipped) }
+})
+const candidates = computed(() =>
+  [...(wardrobe.value?.candidates ?? [])].sort((a, b) => Number(b.equipped) - Number(a.equipped) || b.renderTargets.length - a.renderTargets.length),
+)
+const loadoutTargets = computed(() => {
+  const ids = new Set<string>()
+  for (const item of wardrobe.value?.equipped ?? []) for (const target of item.renderTargets) ids.add(target.gameId)
+  return [...ids]
+})
+const slots = computed(() => {
+  const keys = [...new Set((wardrobe.value?.candidates ?? []).map((item) => item.slot).filter(Boolean) as string[])]
+  return keys.map((key) => ({ key, item: wardrobe.value?.equipped.find((item) => item.slot === key) ?? null }))
+})
+const coverBySlug = computed(() => new Map((games.value ?? []).map((game) => [game.slug, game.coverArt?.url ?? ''])))
+function coverFor(slug: string) {
+  return coverBySlug.value.get(slug) || ''
+}
+
 const saving = ref('')
-const slotFocus = ref('')
+const inlineErrors = reactive<Record<string, string>>({})
+const displacedNote = ref('')
 
-const { data, pending, refresh } = await useAsyncData('wardrobe-page', () => api.one<any>('/api/v1/passport/me/wardrobe').catch(() => null))
-const candidates = computed(() => (data.value?.candidates?.length ? data.value.candidates : demoCandidates))
-const equipped = computed(() => (data.value?.equipped?.length ? data.value.equipped : candidates.value.filter((item: any) => item.equipped)))
-const renderTargetCount = computed(() => new Set(equipped.value.flatMap((item: any) => item.renderTargets.map((target: any) => target.gameId))).size)
-const slots = computed<Array<{ key: string; label: string; item: any | null }>>(() => {
-  const bySlot = new Map(equipped.value.map((item: any) => [item.traits?.slot, item]))
-  return [
-    { key: 'torso', label: 'Torso', item: bySlot.get('torso') },
-    { key: 'trail', label: 'Trail', item: bySlot.get('trail') },
-    { key: 'emblem', label: 'Emblem', item: bySlot.get('emblem') },
-    { key: 'nameplate', label: 'Nameplate', item: bySlot.get('nameplate') },
-  ]
-})
-
-const visibleCandidates = computed(() => {
-  const rows = [...candidates.value].sort((a: any, b: any) => {
-    if (a.equipped !== b.equipped) return a.equipped ? -1 : 1
-    return (b.renderTargets?.length ?? 0) - (a.renderTargets?.length ?? 0)
-  })
-  if (!slotFocus.value) return rows
-  return rows.sort((a: any, b: any) => {
-    const am = a.traits?.slot === slotFocus.value ? 0 : 1
-    const bm = b.traits?.slot === slotFocus.value ? 0 : 1
-    return am - bm
-  })
-})
-
-const nonInteropItem = computed(() => demoNonInteropItem)
-const avatarPreview = computed(() => seedAsset('games/petalpost-cover.png'))
-
-function seedAsset(path: string) {
-  const base = String(config.public.apiBase ?? 'http://127.0.0.1:4000').replace(/\/$/, '')
-  return `${base}/assets/seed/${path}`
-}
-
-function renderTargetImage(slug: string) {
-  return seedAsset(`games/${slug}-cover.png`)
-}
-
-function focusSlot(slot: string) {
-  slotFocus.value = slot
-}
-
-async function toggle(item: any) {
-  inlineError.value = ''
+async function toggle(item: InventoryItem) {
+  if (saving.value) return
+  const before = (wardrobe.value?.candidates ?? []).map((row) => ({ ...row }))
+  const equip = !item.equipped
   saving.value = item.id
+  delete inlineErrors[item.id]
+  displacedNote.value = ''
+  // Optimistic update with slot displacement, rolled back on failure.
+  const displaced = equip && item.slot ? before.filter((row) => row.id !== item.id && row.slot === item.slot && row.equipped) : []
+  local.value = before.map((row) => {
+    if (row.id === item.id) return { ...row, equipped: equip }
+    if (displaced.some((d) => d.id === row.id)) return { ...row, equipped: false }
+    return row
+  })
   try {
-    await api.one('/api/v1/passport/me/wardrobe', {
+    const result = await api.one<{ candidates: InventoryItem[] }>('/api/v1/passport/me/wardrobe', {
       method: 'PATCH',
-      body: item.equipped ? { unequip: [item.id] } : { equip: [item.id] },
+      body: equip ? { equip: [item.id] } : { unequip: [item.id] },
     })
-    await refresh()
-  } catch (error: any) {
-    inlineError.value = error?.data?.error?.code ?? 'Unable to update wardrobe.'
+    if (result.candidates) local.value = result.candidates
+    if (displaced.length) displacedNote.value = `${item.name} replaced ${displaced.map((row) => row.name).join(', ')} in the ${humanize(item.slot)} slot.`
+    toast.push(equip ? 'Equipped' : 'Unequipped', 'Your loadout syncs to every game that renders it.', '🧥')
+    session.reload()
+  } catch (err) {
+    local.value = before
+    inlineErrors[item.id] = isApiError(err, 'item_listed')
+      ? 'This item is listed on the market — cancel the listing before equipping it.'
+      : isApiError(err, 'not_interoperable')
+        ? 'T0 items cannot be equipped across games.'
+        : errorMessage(err)
   } finally {
     saving.value = ''
   }
-}
-
-const demoGames = [
-  { gameId: 'gam_voidrunner', slug: 'voidrunner', title: 'Voidrunner' },
-  { gameId: 'gam_grimloop', slug: 'grimloop', title: 'Grimloop' },
-  { gameId: 'gam_hexfleet', slug: 'hexfleet', title: 'Hexfleet' },
-  { gameId: 'gam_petalpost', slug: 'petalpost', title: 'Petalpost' },
-  { gameId: 'gam_lumen_leap', slug: 'lumen-leap', title: 'Lumen Leap' },
-]
-
-const demoCandidates = [
-  {
-    id: 'inv_jacket',
-    name: 'Ashmaw Jacket',
-    game: { title: 'Voidrunner', slug: 'voidrunner' },
-    kind: 'cosmetic',
-    interopTier: 'T1',
-    imageUrl: seedAsset('items/itd_vr_jacket.png'),
-    equipped: true,
-    traits: { slot: 'torso' },
-    renderTargets: [...demoGames, { gameId: 'gam_shardport', slug: 'shardport', title: 'Shardport' }, { gameId: 'gam_starloom', slug: 'starloom', title: 'Starloom' }, { gameId: 'gam_afterglow_party', slug: 'afterglow-party', title: 'Afterglow Party' }],
-  },
-  {
-    id: 'inv_trail',
-    name: 'Aurora Trail',
-    game: { title: 'Lumen Leap', slug: 'lumen-leap' },
-    kind: 'cosmetic',
-    interopTier: 'T1',
-    imageUrl: seedAsset('items/itd_ll_trail.png'),
-    equipped: true,
-    traits: { slot: 'trail' },
-    renderTargets: demoGames.slice(0, 4),
-  },
-  {
-    id: 'inv_tileset',
-    name: 'Neon Tileset',
-    game: { title: 'Glass Circuit', slug: 'glass-circuit' },
-    kind: 'cosmetic',
-    interopTier: 'T1',
-    imageUrl: seedAsset('items/puzzle_sigil_wrap.png'),
-    equipped: false,
-    traits: { slot: 'theme' },
-    renderTargets: demoGames.slice(0, 4),
-  },
-  {
-    id: 'inv_cloak',
-    name: 'Ashen Cloak',
-    game: { title: 'Grimloop', slug: 'grimloop' },
-    kind: 'cosmetic',
-    interopTier: 'T1',
-    imageUrl: seedAsset('items/itd_gl_cloak.png'),
-    equipped: false,
-    traits: { slot: 'torso' },
-    renderTargets: [...demoGames, { gameId: 'gam_driftshock', slug: 'driftshock', title: 'Driftshock' }, { gameId: 'gam_null_saint', slug: 'null-saint', title: 'Null Saint' }, { gameId: 'gam_signal_cartel', slug: 'signal-cartel', title: 'Signal Cartel' }],
-  },
-  {
-    id: 'inv_flag',
-    name: 'Commander Flag',
-    game: { title: 'Hexfleet', slug: 'hexfleet' },
-    kind: 'cosmetic',
-    interopTier: 'T1',
-    imageUrl: seedAsset('items/itd_hf_flag.png'),
-    equipped: false,
-    traits: { slot: 'emblem' },
-    renderTargets: [...demoGames, { gameId: 'gam_shardport', slug: 'shardport', title: 'Shardport' }],
-  },
-  {
-    id: 'inv_bike',
-    name: 'Brass Bicycle',
-    game: { title: 'Petalpost', slug: 'petalpost' },
-    kind: 'cosmetic',
-    interopTier: 'T1',
-    imageUrl: seedAsset('items/itd_pp_bike.png'),
-    equipped: false,
-    traits: { slot: 'vehicle' },
-    renderTargets: demoGames.slice(0, 3),
-  },
-]
-
-const demoNonInteropItem = {
-  name: 'Season Pass · Ashfall',
-  imageUrl: seedAsset('items/itd_vr_starter.png'),
-  game: { title: 'Voidrunner' },
 }
 </script>
