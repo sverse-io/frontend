@@ -1,7 +1,7 @@
 <template>
-  <StoreBrowsePage />
+  <StoreBrowse />
 </template>
 
 <script setup lang="ts">
-import StoreBrowsePage from './store/index.vue'
+useHead({ title: 'Store · Sverse' })
 </script>

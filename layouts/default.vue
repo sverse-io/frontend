@@ -1,10 +1,8 @@
 <template>
   <div class="sf">
-    <AppTop :balance="balance" />
+    <AppTop />
     <slot />
+    <AppFooter />
+    <AppToasts />
   </div>
 </template>
-
-<script setup lang="ts">
-const balance = ref('2,450')
-</script>
