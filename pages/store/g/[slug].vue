@@ -27,7 +27,6 @@
             <div class="ghero__tags">
               <span class="chip chip--live"><i class="dot"></i>{{ formatCount(game.stats?.playersLive) }} playing</span>
               <span class="chip" title="Proof-of-Play score">PoP {{ formatNumber(game.stats?.proofOfPlayScore) }}</span>
-              <DemoChip :source="game.statsSource" />
               <span :class="tierClass(game.interopTier)">INTEROP {{ game.interopTier }}</span>
               <span class="chip chip--lvl">TOKENIZATION {{ game.tokenizationLevel }}</span>
               <span v-if="game.studio.oneHumanStudio" class="chip">ONE-HUMAN STUDIO ✓</span>

@@ -13,7 +13,6 @@
       <p class="tcard__s">@{{ game.studio?.handle }} · {{ genreLabel(game.genre) }}</p>
       <p class="tcard__m">
         <span>{{ formatCount(game.stats?.playersLive ?? 0) }} playing</span>
-        <DemoChip :source="game.statsSource" />
         <template v-if="game.priceFromSrv">
           <span>·</span>
           <span>from {{ groupSrv(game.priceFromSrv) }} SRV</span>

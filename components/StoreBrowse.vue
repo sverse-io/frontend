@@ -21,7 +21,6 @@
             <div class="sfslide__k">
               <span class="chip chip--yours">TOP BY PROOF-OF-PLAY</span>
               <span class="chip chip--live"><i class="dot"></i>{{ formatCount(featured.stats?.playersLive) }} playing</span>
-              <DemoChip :source="featured.statsSource" />
               <span :class="tierClass(featured.interopTier)">INTEROP {{ featured.interopTier }}</span>
             </div>
             <h2>{{ featured.title }}</h2>
@@ -60,7 +59,6 @@
       </div>
       <p class="shelf__s">
         Ranked by <b>Proof-of-Play</b> — verified playtime from reputable passports, never download counts.
-        <DemoChip v-if="hasSeedStats" source="seed" />
       </p>
       <div v-if="status === 'pending' && !games.length" class="store-grid store-grid--games" aria-busy="true">
         <div v-for="n in 6" :key="n" class="tcard">
@@ -105,7 +103,6 @@
       <section class="shelf">
         <div class="shelf__h">
           <h3>Top charts</h3>
-          <DemoChip :source="hasSeedStats ? 'seed' : null" />
         </div>
         <p class="shelf__s">By weighted playtime. A low-reputation passport's hours count for almost nothing here, which keeps the chart honest.</p>
         <div class="grid g2" style="gap:10px 34px">
@@ -252,7 +249,6 @@ watch(
 
 const games = computed(() => [...(data.value?.data ?? []), ...extra.value])
 const featured = computed(() => (filtered.value ? null : games.value[0] ?? null))
-const hasSeedStats = computed(() => games.value.some((game) => game.statsSource === 'seed'))
 const interopGames = computed(() => games.value.filter((game) => game.interopTier !== 'T0').slice(0, 4))
 const chartColumns = computed(() => {
   const chart = [...games.value].sort((a, b) => Number(b.stats?.proofOfPlayScore ?? 0) - Number(a.stats?.proofOfPlayScore ?? 0)).slice(0, 8)
